@@ -2,7 +2,6 @@ package day03;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 public class STM {
@@ -46,12 +45,10 @@ public class STM {
 	}
 	
 	static class Ref<T> {
-		static final AtomicInteger serial = new AtomicInteger(0);
-		int version;
+		int version = 0;
 		T value;
 		
 		public Ref(T captured) {
-			version = serial.getAndIncrement() % Integer.MAX_VALUE;
 			value = captured;
 		}
 		
@@ -60,18 +57,5 @@ public class STM {
 			value = (T) newValue;
 			version++;
 		}
-	}
-	
-	public static void main(String[] args) {
-		final Ref<Long> a = new Ref<>(1000L);
-		final Ref<Long> b = new Ref<>(2000L);
-		
-		boolean success = new STM().start(
-				(tx) -> tx.join(a, b),
-				(tx) -> {
-					tx.update(a, a.value + 500);
-					tx.update(b, b.value - 500);
-				});
-		System.out.println(success);
 	}
 }

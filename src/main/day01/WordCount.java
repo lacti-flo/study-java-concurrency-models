@@ -1,20 +1,10 @@
 package day01;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
 public class WordCount {
-	
-	public static void main(String[] args) throws IOException, URISyntaxException {
-		final String sentence = String.join(" ", Files.readAllLines(Paths.get(WordCount.class.getResource("words").toURI()), StandardCharsets.UTF_8));
-		System.out.println(countWordsInSequential(sentence));
-	}
 	
 	static Map<String, Long> countWordsInSequential(String sentence) {
 		return Arrays.stream(sentence.split("\\s+")) // map
