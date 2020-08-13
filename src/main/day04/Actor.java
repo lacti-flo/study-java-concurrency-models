@@ -1,42 +1,46 @@
 package day04;
 
-import java.util.Queue;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class Actor<T> {
-	private final Queue<Consumer<T>> mailBox = new ConcurrentLinkedQueue<>();
-	private final AtomicInteger mailCount = new AtomicInteger(0);
-	private final T target;
+public class Actor<A> {
+	// queue만 주입해서 분산 actor로 확장 가능할까?
+	// actor system 수준으로 필요한 것은 무엇이 있을까?
+	private final ActorQueue<A> queue;
+	private final A target;
 	
-	public Actor(T target) {
+	public Actor(final ActorQueue<A> queue,
+	             final A target) {
+		this.queue = queue;
 		this.target = target;
 	}
 	
-	public void send(Consumer<T> mail) {
-		mailBox.add(mail);
-		if (mailCount.getAndIncrement() == 0) {
-			processMails();
+	// 메시지가 아니고 Consumer이어도 되는가? 문제가 없을까?
+	public void run(final Consumer<A> task) {
+		if (queue.enqueue(task).acquired) {
+			processTasks();
 		}
 	}
 	
-	public <R> CompletableFuture<R> query(Function<T, R> mapper) {
+	// 메시지가 아니고 Function이어도 되는가? 문제가 없을까?
+	public <R> CompletableFuture<R> query(final Function<A, R> mapper) {
 		final CompletableFuture<R> future = new CompletableFuture<>();
-		send(state -> future.complete(mapper.apply(state)));
+		run(state -> future.complete(mapper.apply(state)));
 		return future;
 	}
 	
-	private void processMails() {
-		int processed;
-		do {
-			processed = 0;
-			while (!mailBox.isEmpty()) {
-				mailBox.poll().accept(target);
-				++processed;
+	private void processTasks() {
+		// fairness 주의
+		while (true) {
+			final List<Consumer<A>> tasks = queue.flush();
+			// 효과적인 에러 처리를 위해서는 어떻게 하는게 좋을까?
+			// 에러 처리 전략은 actor와 분리될 수 있는가?
+			tasks.forEach(task -> task.accept(target));
+			if (!queue.complete(tasks.size()).hasMore) {
+				break;
 			}
-		} while (mailCount.addAndGet(-processed) > 0);
+		}
 	}
 }
